@@ -105,3 +105,7 @@ If you installed using go, your user has the environment variables required to l
 ```
 sudo env "PATH=$PATH" furious
 ```
+
+## SYN/Connect scans are slower than nmap!
+
+They're not in my experience, but with default arguments furious scans nearly six times as many ports as nmap does by default.
