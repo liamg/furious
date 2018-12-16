@@ -79,7 +79,7 @@ furious 192.168.1.0/24
 ### Run a SYN (stealth) scan (with root privileges)
 
 ```
-sudo furious -s syn 192.168.1.1
+sudo -E furious -s syn 192.168.1.1
 ```
 
 ### Run a connect scan as any user
@@ -88,8 +88,18 @@ sudo furious -s syn 192.168.1.1
 furious -s connect 192.168.1.1
 ```
 
-## Identify device MAC address and manufacturer within a local network
+### Identify device MAC address and manufacturer within a local network
 
 ```
 furious -s device 192.168.1.1
+```
+
+## Troubleshooting
+
+### `sudo: furious: command not found`
+
+If you installed using go, your user has the environment variables required to locate go programs, but root does not. You need to:
+
+```
+sudo -E furious
 ```
