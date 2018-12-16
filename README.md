@@ -2,7 +2,8 @@
 
 Furious is a fast, lightweight, portable network scanner.
 
-![Screenshot](./screenshot.png)
+![Screenshot 1](./screenshot.png)
+![Screenshot 2](./screenshot2.png)
 
 Tested on Mac/Linux, may also work on Windows!
 
