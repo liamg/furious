@@ -75,7 +75,7 @@ furious 192.168.1.0/24
 ### Scan a mixture of IPs, hostnames and CIDRs
 
 ```
-furious 192.168.1.0/24 
+furious -s connect 8.8.8.8 192.168.1.1/24 google.com
 ```
 
 ### Run a SYN (stealth) scan (with root privileges)
@@ -93,7 +93,7 @@ furious -s connect 192.168.1.1
 ### Identify device MAC address and manufacturer within a local network
 
 ```
-furious -s device 192.168.1.1
+furious -s device 192.168.1.1/24 -u
 ```
 
 ## Troubleshooting
