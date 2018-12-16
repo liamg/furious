@@ -101,5 +101,5 @@ furious -s device 192.168.1.1
 If you installed using go, your user has the environment variables required to locate go programs, but root does not. You need to:
 
 ```
-sudo -E furious
+sudo env "PATH=$PATH" furious
 ```
