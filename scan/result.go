@@ -14,6 +14,7 @@ type Result struct {
 	Manufacturer string
 	MAC          string
 	Latency      time.Duration
+	Name         string
 }
 
 func NewResult(host net.IP) Result {

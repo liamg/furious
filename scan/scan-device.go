@@ -94,6 +94,11 @@ func (s *DeviceScanner) Scan(ctx context.Context, ports []int) ([]Result, error)
 						r.Manufacturer = manufacturer
 					}
 
+					// only bother looking up hostname for local devices
+					if addr, err := net.LookupAddr(ip.String()); err == nil && len(addr) > 0 {
+						r.Name = addr[0]
+					}
+
 				}
 			}
 
@@ -163,6 +168,14 @@ func (s *DeviceScanner) OutputResult(result Result) {
 			"\t%s %s\n",
 			pad("Manufacturer:", 24),
 			result.Manufacturer,
+		)
+	}
+
+	if result.Name != "" {
+		fmt.Printf(
+			"\t%s %s\n",
+			pad("Name:", 24),
+			result.Name,
 		)
 	}
 
