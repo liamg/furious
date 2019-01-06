@@ -29,7 +29,7 @@ Use the specified scan type. The options are:
 
 | Type       | Description |
 |------------|-------------|
-| `syn`      | A SYN/stealth scan. Fastest and usual preferred scan type, using only a partial TCP handshake. Requires root privileges.
+| `syn`      | A SYN/stealth scan. Most efficient scan type, using only a partial TCP handshake. Requires root privileges.
 | `connect`  | A less detailed scan using full TCP handshakes, though does not require root privileges. 
 | `device`   | Attempt to identify device MAC address and manufacturer where possible. Useful for listing devices on a LAN.
 
