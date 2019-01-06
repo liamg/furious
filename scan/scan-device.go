@@ -14,11 +14,13 @@ import (
 
 type DeviceScanner struct {
 	timeout time.Duration
+	ti      *TargetIterator
 }
 
-func NewDeviceScanner(timeout time.Duration) *DeviceScanner {
+func NewDeviceScanner(ti *TargetIterator, timeout time.Duration) *DeviceScanner {
 	return &DeviceScanner{
 		timeout: timeout,
+		ti:      ti,
 	}
 }
 
@@ -31,7 +33,7 @@ func (s *DeviceScanner) Stop() {
 
 }
 
-func (s *DeviceScanner) Scan(targetIterator *TargetIterator, ports []int) ([]Result, error) {
+func (s *DeviceScanner) Scan(ports []int) ([]Result, error) {
 
 	wg := &sync.WaitGroup{}
 
@@ -51,7 +53,7 @@ func (s *DeviceScanner) Scan(targetIterator *TargetIterator, ports []int) ([]Res
 	}()
 
 	for {
-		ip, err := targetIterator.Next()
+		ip, err := s.ti.Next()
 		if err != nil {
 			if err == io.EOF {
 				break

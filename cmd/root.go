@@ -31,17 +31,17 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&portSelection, "ports", "p", portSelection, "Port to scan. Comma separated, can sue hyphens e.g. 22,80,443,8080-8090")
 }
 
-func createScanner(scanTypeStr string, timeout time.Duration, routines int) (scan.Scanner, error) {
+func createScanner(ti *scan.TargetIterator, scanTypeStr string, timeout time.Duration, routines int) (scan.Scanner, error) {
 	switch strings.ToLower(scanTypeStr) {
 	case "stealth", "syn", "fast":
 		if os.Geteuid() > 0 {
 			return nil, fmt.Errorf("Access Denied: You must be a priviliged user to run this type of scan.")
 		}
-		return scan.NewSynScanner(timeout, routines), nil
+		return scan.NewSynScanner(ti, timeout, routines), nil
 	case "connect":
-		return scan.NewConnectScanner(timeout, routines), nil
+		return scan.NewConnectScanner(ti, timeout, routines), nil
 	case "device":
-		return scan.NewDeviceScanner(timeout), nil
+		return scan.NewDeviceScanner(ti, timeout), nil
 	}
 
 	return nil, fmt.Errorf("Unknown scan type '%s'", scanTypeStr)
@@ -77,30 +77,30 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		scanner, err := createScanner(scanType, time.Millisecond*time.Duration(timeoutMS), parallelism)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		log.Debugf("Starting scanner...")
-		if err := scanner.Start(); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
 		startTime := time.Now()
 
 		fmt.Printf("\nStarting scan at %s\n\n", startTime.String())
-		log.Debugf("Scanning %d ports...", len(ports))
 
 		for _, target := range args {
 
-			log.Debugf("Scanning target %s...", target)
-
 			targetIterator := scan.NewTargetIterator(target)
 
-			results, err := scanner.Scan(targetIterator, ports)
+			// creating scanner
+			scanner, err := createScanner(targetIterator, scanType, time.Millisecond*time.Duration(timeoutMS), parallelism)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			log.Debugf("Starting scanner...")
+			if err := scanner.Start(); err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			log.Debugf("Scanning target %s...", target)
+
+			results, err := scanner.Scan(ports)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)

@@ -32,8 +32,21 @@ func NewTargetIterator(target string) *TargetIterator {
 }
 
 func (ti *TargetIterator) Next() (net.IP, error) {
-
 	ti.index++
+	ip, err := ti.get()
+	if err != nil {
+		return ip, err
+	}
+	ti.incrementIP()
+	return ip, nil
+}
+
+func (ti *TargetIterator) Peek() (net.IP, error) {
+	return ti.get()
+}
+
+func (ti *TargetIterator) get() (net.IP, error) {
+
 	if !ti.isCIDR {
 		if ti.index > 1 {
 			return nil, io.EOF
@@ -54,7 +67,6 @@ func (ti *TargetIterator) Next() (net.IP, error) {
 	if ti.ipnet.Contains(ti.ip) {
 		tIP := make([]byte, len(ti.ip))
 		copy(tIP, ti.ip)
-		ti.incrementIP()
 		return tIP, nil
 	}
 

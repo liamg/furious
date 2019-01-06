@@ -12,14 +12,16 @@ import (
 type ConnectScanner struct {
 	timeout     time.Duration
 	maxRoutines int
-	jobChan     chan job
+	jobChan     chan portJob
+	ti          *TargetIterator
 }
 
-func NewConnectScanner(timeout time.Duration, paralellism int) *ConnectScanner {
+func NewConnectScanner(ti *TargetIterator, timeout time.Duration, paralellism int) *ConnectScanner {
 	return &ConnectScanner{
 		timeout:     timeout,
 		maxRoutines: paralellism,
-		jobChan:     make(chan job, paralellism),
+		jobChan:     make(chan portJob, paralellism),
+		ti:          ti,
 	}
 }
 
@@ -55,7 +57,7 @@ func (s *ConnectScanner) Stop() {
 
 }
 
-func (s *ConnectScanner) Scan(targetIterator *TargetIterator, ports []int) ([]Result, error) {
+func (s *ConnectScanner) Scan(ports []int) ([]Result, error) {
 
 	wg := &sync.WaitGroup{}
 
@@ -75,7 +77,7 @@ func (s *ConnectScanner) Scan(targetIterator *TargetIterator, ports []int) ([]Re
 	}()
 
 	for {
-		ip, err := targetIterator.Next()
+		ip, err := s.ti.Next()
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -147,7 +149,7 @@ func (s *ConnectScanner) scanHost(host net.IP, ports []int) Result {
 
 			done := make(chan struct{})
 
-			s.jobChan <- job{
+			s.jobChan <- portJob{
 				open:     openChan,
 				closed:   closedChan,
 				filtered: filteredChan,
