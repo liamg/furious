@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +16,7 @@ import (
 )
 
 var debug bool
-var timeoutMS int = 1000
+var timeoutMS int = 2000
 var parallelism int = 1000
 var portSelection string
 var scanType = "stealth"
@@ -77,8 +79,17 @@ var rootCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		startTime := time.Now()
+		ctx, cancel := context.WithCancel(context.Background())
 
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			<-c
+			fmt.Println("Scan cancelled. Requesting stop...")
+			cancel()
+		}()
+
+		startTime := time.Now()
 		fmt.Printf("\nStarting scan at %s\n\n", startTime.String())
 
 		for _, target := range args {
@@ -100,7 +111,7 @@ var rootCmd = &cobra.Command{
 
 			log.Debugf("Scanning target %s...", target)
 
-			results, err := scanner.Scan(ports)
+			results, err := scanner.Scan(ctx, ports)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)

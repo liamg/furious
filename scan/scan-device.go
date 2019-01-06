@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -33,7 +34,7 @@ func (s *DeviceScanner) Stop() {
 
 }
 
-func (s *DeviceScanner) Scan(ports []int) ([]Result, error) {
+func (s *DeviceScanner) Scan(ctx context.Context, ports []int) ([]Result, error) {
 
 	wg := &sync.WaitGroup{}
 
@@ -66,6 +67,13 @@ func (s *DeviceScanner) Scan(ports []int) ([]Result, error) {
 		copy(tIP, ip)
 		go func(ip net.IP, wg *sync.WaitGroup) {
 			r := NewResult(ip)
+
+			select {
+			case <-ctx.Done():
+				wg.Done()
+				return
+			default:
+			}
 
 			macStr := arp.Search(ip.String())
 
@@ -100,7 +108,11 @@ func (s *DeviceScanner) Scan(ports []int) ([]Result, error) {
 				conn.Close()
 			}
 
-			resultChan <- &r
+			select {
+			case <-ctx.Done():
+			case resultChan <- &r:
+			}
+
 			wg.Done()
 		}(tIP, wg)
 

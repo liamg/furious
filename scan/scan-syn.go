@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -24,6 +25,7 @@ type portJob struct {
 	closed   chan int
 	filtered chan int
 	done     chan struct{}
+	ctx      context.Context
 }
 
 type hostJob struct {
@@ -31,6 +33,7 @@ type hostJob struct {
 	ports      []int
 	resultChan chan *Result
 	done       chan struct{}
+	ctx        context.Context
 }
 
 type SynScanner struct {
@@ -163,7 +166,7 @@ func (s *SynScanner) send(handle *pcap.Handle, l ...gopacket.SerializableLayer) 
 	return handle.WritePacketData(buf.Bytes())
 }
 
-func (s *SynScanner) Scan(ports []int) ([]Result, error) {
+func (s *SynScanner) Scan(ctx context.Context, ports []int) ([]Result, error) {
 
 	wg := &sync.WaitGroup{}
 	resultChan := make(chan *Result)
@@ -189,6 +192,13 @@ func (s *SynScanner) Scan(ports []int) ([]Result, error) {
 			}
 			return nil, err
 		}
+
+		select {
+		case <-ctx.Done():
+			break
+		default:
+		}
+
 		wg.Add(1)
 		tIP := make([]byte, len(ip))
 		copy(tIP, ip)
@@ -201,6 +211,7 @@ func (s *SynScanner) Scan(ports []int) ([]Result, error) {
 				ip:         host,
 				ports:      ports,
 				done:       done,
+				ctx:        ctx,
 			}
 
 			<-done
@@ -221,6 +232,12 @@ func (s *SynScanner) Scan(ports []int) ([]Result, error) {
 func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 
 	result := NewResult(job.ip)
+
+	select {
+	case <-job.ctx.Done():
+		return result, nil
+	default:
+	}
 
 	router, err := routing.New()
 	if err != nil {
@@ -322,7 +339,19 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 
 	go func() {
 
+		eth := &layers.Ethernet{}
+		ip4 := &layers.IPv4{}
+		tcp := &layers.TCP{}
+
+		parser := gopacket.NewDecodingLayerParser(layers.LayerTypeEthernet, eth, ip4, tcp)
+
 		for {
+
+			select {
+			case <-job.ctx.Done():
+				break
+			default:
+			}
 
 			// Read in the next packet.
 			data, _, err := handle.ReadPacketData()
@@ -336,14 +365,6 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 				continue
 			}
 
-			// Parse the packet.  We'd use DecodingLayerParser here if we
-			// wanted to be really fast.
-
-			eth := &layers.Ethernet{}
-			ip4 := &layers.IPv4{}
-			tcp := &layers.TCP{}
-
-			parser := gopacket.NewDecodingLayerParser(layers.LayerTypeEthernet, eth, ip4, tcp)
 			decoded := []gopacket.LayerType{}
 			if err := parser.DecodeLayers(data, &decoded); err != nil {
 				continue
@@ -355,7 +376,6 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 						continue
 					}
 				case layers.LayerTypeTCP:
-					// second time here dhcp.Options will contain data from both packets
 					if tcp.DstPort != layers.TCPPort(rawPort) {
 						continue
 					} else if tcp.SYN && tcp.ACK {

@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -35,6 +36,13 @@ func (s *ConnectScanner) Start() error {
 					break
 				}
 
+				select {
+				case <-job.ctx.Done():
+					close(job.done)
+					return
+				default:
+				}
+
 				if state, err := s.scanPort(job.ip, job.port); err == nil {
 					switch state {
 					case PortOpen:
@@ -57,7 +65,7 @@ func (s *ConnectScanner) Stop() {
 
 }
 
-func (s *ConnectScanner) Scan(ports []int) ([]Result, error) {
+func (s *ConnectScanner) Scan(ctx context.Context, ports []int) ([]Result, error) {
 
 	wg := &sync.WaitGroup{}
 
@@ -89,7 +97,7 @@ func (s *ConnectScanner) Scan(ports []int) ([]Result, error) {
 		tIP := make([]byte, len(ip))
 		copy(tIP, ip)
 		go func(ip net.IP, ports []int, wg *sync.WaitGroup) {
-			r := s.scanHost(ip, ports)
+			r := s.scanHost(ctx, ip, ports)
 			resultChan <- &r
 			wg.Done()
 		}(tIP, ports, wg)
@@ -104,7 +112,7 @@ func (s *ConnectScanner) Scan(ports []int) ([]Result, error) {
 	return results, nil
 }
 
-func (s *ConnectScanner) scanHost(host net.IP, ports []int) Result {
+func (s *ConnectScanner) scanHost(ctx context.Context, host net.IP, ports []int) Result {
 
 	wg := &sync.WaitGroup{}
 
@@ -156,6 +164,7 @@ func (s *ConnectScanner) scanHost(host net.IP, ports []int) Result {
 				ip:       host,
 				port:     p,
 				done:     done,
+				ctx:      ctx,
 			}
 
 			<-done

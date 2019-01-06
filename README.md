@@ -5,9 +5,17 @@ Furious is a fast, lightweight, portable network scanner.
 ![Screenshot 1](./screenshot.png)
 ![Screenshot 2](./screenshot2.png)
 
-Tested on Mac/Linux, may also work on Windows!
+I haven't done any proper performance testing, but a SYN scan of a single host, including all known ports (~6000) will typically take in the region of 4 seconds. On the same machine, nmap took 98 seconds and produced exactly the same results.
 
 ## Install
+
+You'll need to install libpcap.
+
+- On Linux, install `libpcap` with your package manager
+- On OSX, `brew install libpcap`
+- On Windows, install [WinPcap](https://www.winpcap.org/)
+
+Then just:
 
 ```
 go get -u github.com/liamg/furious

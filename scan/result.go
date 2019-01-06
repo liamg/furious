@@ -40,6 +40,16 @@ func (r Result) String() string {
 		text = fmt.Sprintf("%s\t%s\n", text, "Host is down")
 	}
 
+	if len(r.Open) > 0 {
+		text = fmt.Sprintf(
+			"%s\t%s\t%s\t%s\n",
+			text,
+			"PORT",
+			"STATE",
+			"SERVICE",
+		)
+	}
+
 	for _, port := range r.Open {
 		text = fmt.Sprintf(
 			"%s\t%s\t%s\t%s\n",
