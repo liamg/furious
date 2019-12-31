@@ -107,6 +107,7 @@ func (s *ConnectScanner) Scan(ctx context.Context, ports []int) ([]Result, error
 
 	wg.Wait()
 	close(resultChan)
+	close(s.jobChan)
 	<-doneChan
 
 	return results, nil
