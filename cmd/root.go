@@ -17,7 +17,7 @@ import (
 
 var debug bool
 var timeoutMS int = 2000
-var parallelism int = 1000
+var parallelism int = 500
 var portSelection string
 var scanType = "stealth"
 var hideUnavailableHosts bool
