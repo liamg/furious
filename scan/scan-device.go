@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -180,4 +181,9 @@ func (s *DeviceScanner) OutputResult(result Result) {
 	}
 
 	fmt.Println("")
+}
+
+func (s *DeviceScanner) OutputResultJSON(result Result) {
+	resultJSON, _ := json.Marshal(&result)
+	fmt.Println(string(resultJSON))
 }

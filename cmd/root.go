@@ -16,6 +16,7 @@ import (
 )
 
 var debug bool
+var jsonOutput bool
 var timeoutMS int = 2000
 var parallelism int = 500
 var portSelection string
@@ -28,6 +29,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&versionRequested, "version", "", versionRequested, "Output version information and exit")
 	rootCmd.PersistentFlags().StringVarP(&scanType, "scan-type", "s", scanType, "Scan type. Must be one of stealth, connect")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "verbose", "v", debug, "Enable verbose logging")
+	rootCmd.PersistentFlags().BoolVarP(&jsonOutput, "json", "j", jsonOutput, "Enable JSON output")
 	rootCmd.PersistentFlags().IntVarP(&timeoutMS, "timeout-ms", "t", timeoutMS, "Scan timeout in MS")
 	rootCmd.PersistentFlags().IntVarP(&parallelism, "workers", "w", parallelism, "Parallel routines to scan on")
 	rootCmd.PersistentFlags().StringVarP(&portSelection, "ports", "p", portSelection, "Port to scan. Comma separated, can sue hyphens e.g. 22,80,443,8080-8090")
@@ -90,8 +92,9 @@ var rootCmd = &cobra.Command{
 		}()
 
 		startTime := time.Now()
-		fmt.Printf("\nStarting scan at %s\n\n", startTime.String())
-
+		if !jsonOutput {
+			fmt.Printf("\nStarting scan at %s\n\n", startTime.String())
+		}
 		for _, target := range args {
 
 			targetIterator := scan.NewTargetIterator(target)
@@ -118,6 +121,10 @@ var rootCmd = &cobra.Command{
 			}
 
 			for _, result := range results {
+				if jsonOutput {
+					scanner.OutputResultJSON(result)
+					continue
+				}
 				if !hideUnavailableHosts || result.IsHostUp() {
 					scanner.OutputResult(result)
 				}
@@ -125,8 +132,9 @@ var rootCmd = &cobra.Command{
 
 		}
 
-		fmt.Printf("Scan complete in %s.\n", time.Since(startTime).String())
-
+		if !jsonOutput {
+			fmt.Printf("Scan complete in %s.\n", time.Since(startTime).String())
+		}
 	},
 }
 

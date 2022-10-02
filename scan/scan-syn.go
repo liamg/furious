@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -410,4 +411,9 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 
 func (s *SynScanner) OutputResult(result Result) {
 	fmt.Println(result.String())
+}
+
+func (s *SynScanner) OutputResultJSON(result Result) {
+	resultJSON, _ := json.Marshal(&result)
+	fmt.Println(string(resultJSON))
 }

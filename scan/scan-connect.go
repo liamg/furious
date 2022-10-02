@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -196,4 +197,9 @@ func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
 
 func (s *ConnectScanner) OutputResult(result Result) {
 	fmt.Println(result.String())
+}
+
+func (s *ConnectScanner) OutputResultJSON(result Result) {
+	resultJSON, _ := json.Marshal(&result)
+	fmt.Println(string(resultJSON))
 }
