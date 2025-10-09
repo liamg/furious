@@ -115,6 +115,91 @@ If you installed using go, your user has the environment variables required to l
 sudo env "PATH=$PATH" furious
 ```
 
+## Library Usage
+
+Furious can be used as a Go library in your own projects:
+
+### Simple Usage
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    
+    "github.com/liamg/furious/scan"
+)
+
+func main() {
+    // Quick port check
+    portStatus, err := scan.QuickPortCheck("example.com", 80, 443, 22)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    for port, isOpen := range portStatus {
+        status := "CLOSED"
+        if isOpen {
+            status = "OPEN"
+        }
+        fmt.Printf("Port %d: %s\n", port, status)
+    }
+    
+    // Check if host is up
+    isUp, err := scan.IsHostUp("example.com")
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Host is up: %v\n", isUp)
+}
+```
+
+### Advanced Usage
+
+```go
+// Custom configuration
+config := scan.LibraryConfig{
+    TimeoutMS: 5000,  // 5 second timeout
+    Workers:   100,   // 100 parallel workers
+    ScanType:  "connect",
+    Retries:   2,     // 2 retries for reliability
+}
+
+scanner, err := scan.NewScannerFromConfig("target.com", config)
+if err != nil {
+    log.Fatal(err)
+}
+
+if err := scanner.Start(); err != nil {
+    log.Fatal(err)
+}
+
+results, err := scanner.Scan(context.Background(), []int{80, 443, 22})
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, result := range results {
+    fmt.Printf("Host: %s, Open ports: %v\n", result.Host, result.Open)
+}
+```
+
+### Fixed Manual Scanner Usage
+
+If you prefer the manual approach, make sure to use `time.Duration` correctly:
+
+```go
+// CORRECT: Use time.Duration for timeout
+targetIterator := scan.NewTargetIterator("192.168.3.5")
+timeout := time.Duration(6000) * time.Millisecond  // 6 seconds
+scanner := scan.NewConnectScanner(targetIterator, timeout, 1000)
+
+// The rest of your code...
+```
+
+The issue in your original code was passing `6000` as an integer instead of a proper `time.Duration`. This caused the timeout to be interpreted as 6000 nanoseconds (0.006ms) instead of 6000 milliseconds.
+
 ## SYN/Connect scans are slower than nmap!
 
 They're not in my experience, but with default arguments furious scans nearly six times as many ports as nmap does by default.
