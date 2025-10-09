@@ -129,8 +129,8 @@ func (s *ConnectScanner) scanHost(ctx context.Context, host net.IP, ports []int)
 	go func() {
 		for {
 			select {
-			case open := <-openChan:
-				if open == 0 {
+			case open, ok := <-openChan:
+				if !ok {
 					close(doneChan)
 					return
 				}
@@ -138,12 +138,18 @@ func (s *ConnectScanner) scanHost(ctx context.Context, host net.IP, ports []int)
 					result.Latency = time.Since(startTime)
 				}
 				result.Open = append(result.Open, open)
-			case closed := <-closedChan:
+			case closed, ok := <-closedChan:
+				if !ok {
+					continue
+				}
 				if result.Latency < 0 {
 					result.Latency = time.Since(startTime)
 				}
 				result.Closed = append(result.Closed, closed)
-			case filtered := <-filteredChan:
+			case filtered, ok := <-filteredChan:
+				if !ok {
+					continue
+				}
 				if result.Latency < 0 {
 					result.Latency = time.Since(startTime)
 				}
@@ -185,13 +191,21 @@ func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
 
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", target.String(), port), s.timeout)
 	if err != nil {
-		if strings.Contains(err.Error(), "refused") {
+		errStr := err.Error()
+		if strings.Contains(errStr, "refused") || strings.Contains(errStr, "reset") {
+			// Connection refused or reset - host is up, port is closed
 			return PortClosed, nil
 		}
-		return PortUnknown, err
+		if strings.Contains(errStr, "timeout") || strings.Contains(errStr, "no route") || 
+		   strings.Contains(errStr, "unreachable") {
+			// Network timeout or unreachable - host might be down or port filtered
+			return PortFiltered, nil
+		}
+		// Other errors (permission denied, etc.) - treat as filtered
+		return PortFiltered, nil
 	}
 	conn.Close()
-	return PortOpen, err
+	return PortOpen, nil
 }
 
 func (s *ConnectScanner) OutputResult(result Result) {
