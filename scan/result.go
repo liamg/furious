@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"time"
@@ -62,6 +63,39 @@ func (r Result) String() string {
 	}
 
 	return text
+}
+
+func (r Result) ToJSON() (string, error) {
+	// Create a custom struct for JSON output with proper formatting
+	type jsonResult struct {
+		Host         string `json:"host"`
+		Open         []int  `json:"open_ports"`
+		Closed       []int  `json:"closed_ports"`
+		Filtered     []int  `json:"filtered_ports"`
+		Manufacturer string `json:"manufacturer,omitempty"`
+		MAC          string `json:"mac,omitempty"`
+		LatencyMS    int64  `json:"latency_ms"`
+		Name         string `json:"hostname,omitempty"`
+		IsUp         bool   `json:"is_up"`
+	}
+
+	jr := jsonResult{
+		Host:         r.Host.String(),
+		Open:         r.Open,
+		Closed:       r.Closed,
+		Filtered:     r.Filtered,
+		Manufacturer: r.Manufacturer,
+		MAC:          r.MAC,
+		LatencyMS:    r.Latency.Nanoseconds() / 1000000, // Convert to milliseconds
+		Name:         r.Name,
+		IsUp:         r.IsHostUp(),
+	}
+
+	jsonBytes, err := json.MarshalIndent(jr, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(jsonBytes), nil
 }
 
 func pad(input string, length int) string {

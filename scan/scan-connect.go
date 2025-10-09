@@ -197,3 +197,11 @@ func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
 func (s *ConnectScanner) OutputResult(result Result) {
 	fmt.Println(result.String())
 }
+
+func (s *ConnectScanner) OutputResultJSON(result Result) {
+	if jsonStr, err := result.ToJSON(); err == nil {
+		fmt.Println(jsonStr)
+	} else {
+		fmt.Printf("Error generating JSON: %v\n", err)
+	}
+}
