@@ -119,42 +119,60 @@ func (s *ConnectScanner) scanHost(ctx context.Context, host net.IP, ports []int)
 
 	result := NewResult(host)
 
-	openChan := make(chan int)
-	closedChan := make(chan int)
-	filteredChan := make(chan int)
+	openChan := make(chan int, len(ports))
+	closedChan := make(chan int, len(ports))
+	filteredChan := make(chan int, len(ports))
 	doneChan := make(chan struct{})
 
 	startTime := time.Now()
+	var latencySet bool
+	var mu sync.Mutex
 
 	go func() {
-		for {
+		portsProcessed := 0
+		totalPorts := len(ports)
+		
+		for portsProcessed < totalPorts {
 			select {
 			case open := <-openChan:
-				if open == 0 {
-					close(doneChan)
-					return
-				}
-				if result.Latency < 0 {
+				mu.Lock()
+				if !latencySet {
 					result.Latency = time.Since(startTime)
+					latencySet = true
 				}
 				result.Open = append(result.Open, open)
+				portsProcessed++
+				mu.Unlock()
 			case closed := <-closedChan:
-				if result.Latency < 0 {
+				mu.Lock()
+				if !latencySet {
 					result.Latency = time.Since(startTime)
+					latencySet = true
 				}
 				result.Closed = append(result.Closed, closed)
+				portsProcessed++
+				mu.Unlock()
 			case filtered := <-filteredChan:
-				if result.Latency < 0 {
+				mu.Lock()
+				if !latencySet {
 					result.Latency = time.Since(startTime)
+					latencySet = true
 				}
 				result.Filtered = append(result.Filtered, filtered)
+				portsProcessed++
+				mu.Unlock()
+			case <-ctx.Done():
+				close(doneChan)
+				return
 			}
 		}
+		close(doneChan)
 	}()
 
 	for _, port := range ports {
 		wg.Add(1)
 		go func(p int, wg *sync.WaitGroup) {
+			defer wg.Done()
 
 			done := make(chan struct{})
 
@@ -169,13 +187,11 @@ func (s *ConnectScanner) scanHost(ctx context.Context, host net.IP, ports []int)
 			}
 
 			<-done
-			wg.Done()
 
 		}(port, wg)
 	}
 
 	wg.Wait()
-	close(openChan)
 	<-doneChan
 
 	return result
@@ -185,13 +201,27 @@ func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
 
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", target.String(), port), s.timeout)
 	if err != nil {
-		if strings.Contains(err.Error(), "refused") {
+		// Connection refused means the host is up but port is closed
+		if strings.Contains(err.Error(), "refused") || 
+		   strings.Contains(err.Error(), "connection refused") {
 			return PortClosed, nil
 		}
+		// Connection reset also means host is up but port is closed/filtered
+		if strings.Contains(err.Error(), "reset") ||
+		   strings.Contains(err.Error(), "connection reset") {
+			return PortClosed, nil
+		}
+		// Timeout or no route means filtered or host down
+		if strings.Contains(err.Error(), "timeout") ||
+		   strings.Contains(err.Error(), "no route") ||
+		   strings.Contains(err.Error(), "network is unreachable") {
+			return PortFiltered, nil
+		}
+		// Other errors (like "no such host") indicate the host is down
 		return PortUnknown, err
 	}
 	conn.Close()
-	return PortOpen, err
+	return PortOpen, nil
 }
 
 func (s *ConnectScanner) OutputResult(result Result) {
