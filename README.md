@@ -29,8 +29,8 @@ Use the specified scan type. The options are:
 
 | Type       | Description |
 |------------|-------------|
-| `syn`      | A SYN/stealth scan. Most efficient scan type, using only a partial TCP handshake. Requires root privileges.
-| `connect`  | A less detailed scan using full TCP handshakes, though does not require root privileges. 
+| `syn`      | A SYN/stealth scan. Most efficient scan type, using only a partial TCP handshake. Requires root privileges. **Now properly detects filtered ports.**
+| `connect`  | A less detailed scan using full TCP handshakes, though does not require root privileges. **Improved error classification for filtered ports.**
 | `device`   | Attempt to identify device MAC address and manufacturer where possible. Useful for listing devices on a LAN.
 
 The default is a SYN scan.
@@ -114,6 +114,26 @@ If you installed using go, your user has the environment variables required to l
 ```
 sudo env "PATH=$PATH" furious
 ```
+
+## Port States
+
+Furious classifies ports into three states, similar to nmap:
+
+| State      | Description |
+|------------|-------------|
+| **Open**   | Port is accepting connections (SYN+ACK received or successful TCP connection) |
+| **Closed** | Port is not accepting connections but host is reachable (RST received or connection refused) |
+| **Filtered** | No response received, likely due to firewall filtering (timeout in SYN scan or network unreachable) |
+
+### SYN Scan Port Detection
+- **Open**: Receives SYN+ACK response
+- **Closed**: Receives RST response  
+- **Filtered**: No response after timeout (packets likely dropped by firewall)
+
+### Connect Scan Port Detection
+- **Open**: Successful TCP connection established
+- **Closed**: Connection refused or reset by peer
+- **Filtered**: Connection timeout or network unreachable
 
 ## SYN/Connect scans are slower than nmap!
 

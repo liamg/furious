@@ -185,13 +185,31 @@ func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
 
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", target.String(), port), s.timeout)
 	if err != nil {
-		if strings.Contains(err.Error(), "refused") {
+		// Connection refused means the host is up but port is closed
+		if strings.Contains(err.Error(), "refused") || 
+		   strings.Contains(err.Error(), "connection refused") {
 			return PortClosed, nil
 		}
+		// Connection reset also means host is up but port is closed/filtered
+		if strings.Contains(err.Error(), "reset") ||
+		   strings.Contains(err.Error(), "connection reset") {
+			return PortClosed, nil
+		}
+		// Timeout means the port is filtered (firewall dropping packets)
+		if strings.Contains(err.Error(), "timeout") ||
+		   strings.Contains(err.Error(), "i/o timeout") {
+			return PortFiltered, nil
+		}
+		// No route or network unreachable means filtered or host down
+		if strings.Contains(err.Error(), "no route") ||
+		   strings.Contains(err.Error(), "network is unreachable") {
+			return PortFiltered, nil
+		}
+		// Other errors (like "no such host") indicate the host is down
 		return PortUnknown, err
 	}
 	conn.Close()
-	return PortOpen, err
+	return PortOpen, nil
 }
 
 func (s *ConnectScanner) OutputResult(result Result) {
