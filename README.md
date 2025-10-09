@@ -61,6 +61,16 @@ The number of worker routines to use to scan ports in parallel. Default is *1000
 
 Only show output for hosts that are confirmed as up.
 
+### `-o [FORMAT]` `--output [FORMAT]`
+
+Output format for scan results. Available formats:
+
+| Format   | Description |
+|----------|-------------|
+| `normal` | Human-readable text output (default) |
+| `json`   | Structured JSON output similar to nmap's `-oJ` |
+| `xml`    | Structured XML output similar to nmap's `-oX` |
+
 ### `--version`
 
 Output version information and exit.
@@ -103,6 +113,79 @@ furious -s connect 192.168.1.1
 
 ```
 furious -s device 192.168.1.1/24 -u
+```
+
+### Generate structured output
+
+#### JSON Output (similar to nmap -oJ)
+```
+furious -s connect -o json 192.168.1.1
+```
+
+Example JSON output:
+```json
+{
+  "version": "development version",
+  "scan_time": "2023-01-01T12:00:00Z",
+  "args": "192.168.1.1",
+  "results": [
+    {
+      "host": "192.168.1.1",
+      "status": "up",
+      "latency": {
+        "ms": 2.5,
+        "ns": 2500000
+      },
+      "ports": {
+        "open": [
+          {
+            "number": 22,
+            "protocol": "tcp",
+            "service": "ssh",
+            "state": "open"
+          },
+          {
+            "number": 80,
+            "protocol": "tcp",
+            "service": "http",
+            "state": "open"
+          }
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "hosts_up": 1,
+    "hosts_down": 0,
+    "hosts_total": 1,
+    "duration": "1.2s",
+    "ports_scanned": 6000
+  }
+}
+```
+
+#### XML Output (similar to nmap -oX)
+```
+furious -s connect -o xml 192.168.1.1
+```
+
+Example XML output:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<furious_scan version="development version" scan_time="2023-01-01T12:00:00Z" args="192.168.1.1">
+  <results>
+    <host host="192.168.1.1" status="up">
+      <latency ms="2.5" ns="2500000"></latency>
+      <ports>
+        <open>
+          <port number="22" protocol="tcp" service="ssh" state="open"></port>
+          <port number="80" protocol="tcp" service="http" state="open"></port>
+        </open>
+      </ports>
+    </host>
+  </results>
+  <summary hosts_up="1" hosts_down="0" hosts_total="1" duration="1.2s" ports_scanned="6000"></summary>
+</furious_scan>
 ```
 
 ## Troubleshooting
