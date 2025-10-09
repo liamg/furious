@@ -181,3 +181,11 @@ func (s *DeviceScanner) OutputResult(result Result) {
 
 	fmt.Println("")
 }
+
+func (s *DeviceScanner) OutputResultJSON(result Result) {
+	if jsonStr, err := result.ToJSON(); err == nil {
+		fmt.Println(jsonStr)
+	} else {
+		fmt.Printf("Error generating JSON: %v\n", err)
+	}
+}
