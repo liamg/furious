@@ -22,6 +22,8 @@ var portSelection string
 var scanType = "stealth"
 var hideUnavailableHosts bool
 var versionRequested bool
+var jsonOutput bool
+var xmlOutput bool
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&hideUnavailableHosts, "up-only", "u", hideUnavailableHosts, "Omit output for hosts which are not up")
@@ -31,6 +33,8 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&timeoutMS, "timeout-ms", "t", timeoutMS, "Scan timeout in MS")
 	rootCmd.PersistentFlags().IntVarP(&parallelism, "workers", "w", parallelism, "Parallel routines to scan on")
 	rootCmd.PersistentFlags().StringVarP(&portSelection, "ports", "p", portSelection, "Port to scan. Comma separated, can sue hyphens e.g. 22,80,443,8080-8090")
+	rootCmd.PersistentFlags().BoolVarP(&jsonOutput, "json", "j", jsonOutput, "Output results in JSON format")
+	rootCmd.PersistentFlags().BoolVarP(&xmlOutput, "xml", "x", xmlOutput, "Output results in XML format")
 }
 
 func createScanner(ti *scan.TargetIterator, scanTypeStr string, timeout time.Duration, routines int) (scan.Scanner, error) {
@@ -68,6 +72,12 @@ var rootCmd = &cobra.Command{
 			log.SetLevel(log.DebugLevel)
 		}
 
+		// Validate output format flags
+		if jsonOutput && xmlOutput {
+			fmt.Println("Error: Cannot specify both --json and --xml output formats. Please choose one.")
+			os.Exit(1)
+		}
+
 		if len(args) == 0 {
 			fmt.Println("Please specify a target")
 			os.Exit(1)
@@ -89,10 +99,28 @@ var rootCmd = &cobra.Command{
 			cancel()
 		}()
 
+		// Determine output format
+		var outputFormat scan.OutputFormat
+		if jsonOutput {
+			outputFormat = scan.FormatJSON
+		} else if xmlOutput {
+			outputFormat = scan.FormatXML
+		} else {
+			outputFormat = scan.FormatText
+		}
+
+		outputManager := scan.NewOutputManager(outputFormat)
+
 		startTime := time.Now()
-		fmt.Printf("\nStarting scan at %s\n\n", startTime.String())
+		if outputFormat == scan.FormatText {
+			fmt.Printf("\nStarting scan at %s\n\n", startTime.String())
+		}
+
+		allResults := []scan.Result{}
+		allTargets := []string{}
 
 		for _, target := range args {
+			allTargets = append(allTargets, target)
 
 			targetIterator := scan.NewTargetIterator(target)
 
@@ -119,13 +147,44 @@ var rootCmd = &cobra.Command{
 
 			for _, result := range results {
 				if !hideUnavailableHosts || result.IsHostUp() {
-					scanner.OutputResult(result)
+					if outputFormat == scan.FormatText {
+						scanner.OutputResult(result)
+					} else {
+						allResults = append(allResults, result)
+					}
 				}
 			}
 
 		}
 
-		fmt.Printf("Scan complete in %s.\n", time.Since(startTime).String())
+		// For structured output, write all results at once
+		if outputFormat != scan.FormatText {
+			endTime := time.Now()
+			metadata := scan.ScanMetadata{
+				Version:     version.Version,
+				StartTime:   startTime,
+				EndTime:     endTime,
+				Duration:    endTime.Sub(startTime),
+				ScanType:    scanType,
+				Targets:     allTargets,
+				Ports:       ports,
+				Timeout:     timeoutMS,
+				Parallelism: parallelism,
+				Summary:     calculateSummary(allResults),
+			}
+			
+			if metadata.Version == "" {
+				metadata.Version = "development version"
+			}
+			
+			err := outputManager.WriteResults(allResults, metadata)
+			if err != nil {
+				outputManager.WriteError(err)
+				os.Exit(1)
+			}
+		} else {
+			fmt.Printf("Scan complete in %s.\n", time.Since(startTime).String())
+		}
 
 	},
 }
@@ -135,6 +194,27 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func calculateSummary(results []scan.Result) scan.ScanSummary {
+	summary := scan.ScanSummary{
+		TotalHosts: len(results),
+	}
+	
+	for _, result := range results {
+		if result.IsHostUp() {
+			summary.HostsUp++
+		} else {
+			summary.HostsDown++
+		}
+		
+		summary.OpenPorts += len(result.Open)
+		summary.ClosedPorts += len(result.Closed)
+		summary.FilteredPorts += len(result.Filtered)
+		summary.TotalPorts += len(result.Open) + len(result.Closed) + len(result.Filtered)
+	}
+	
+	return summary
 }
 
 func getPorts(selection string) ([]int, error) {
