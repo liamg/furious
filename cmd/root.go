@@ -27,7 +27,7 @@ var jsonOutput bool
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&hideUnavailableHosts, "up-only", "u", hideUnavailableHosts, "Omit output for hosts which are not up")
 	rootCmd.PersistentFlags().BoolVarP(&versionRequested, "version", "", versionRequested, "Output version information and exit")
-	rootCmd.PersistentFlags().StringVarP(&scanType, "scan-type", "s", scanType, "Scan type. Must be one of stealth, connect")
+	rootCmd.PersistentFlags().StringVarP(&scanType, "scan-type", "s", scanType, "Scan type: 'syn/stealth' (half-open, requires root), 'connect' (full TCP), 'device' (discovery)")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "verbose", "v", debug, "Enable verbose logging")
 	rootCmd.PersistentFlags().IntVarP(&timeoutMS, "timeout-ms", "t", timeoutMS, "Scan timeout in MS")
 	rootCmd.PersistentFlags().IntVarP(&parallelism, "workers", "w", parallelism, "Parallel routines to scan on")
@@ -39,7 +39,7 @@ func createScanner(ti *scan.TargetIterator, scanTypeStr string, timeout time.Dur
 	switch strings.ToLower(scanTypeStr) {
 	case "stealth", "syn", "fast":
 		if os.Geteuid() > 0 {
-			return nil, fmt.Errorf("Access Denied: You must be a priviliged user to run this type of scan.")
+			return nil, fmt.Errorf("Access Denied: SYN/stealth scan requires root privileges for raw socket access.\nTry: sudo %s or use '-s connect' for unprivileged scanning.", os.Args[0])
 		}
 		return scan.NewSynScanner(ti, timeout, routines), nil
 	case "connect":
