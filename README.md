@@ -12,8 +12,10 @@ I haven't done any proper performance testing, but a SYN scan of a single host, 
 You'll need to install libpcap.
 
 - On Linux, install `libpcap` with your package manager
-- On OSX, `brew install libpcap`
+- On macOS, `brew install libpcap`
 - On Windows, install [WinPcap](https://www.winpcap.org/)
+
+**Note:** SYN scanning now works on Linux, macOS, and Windows with proper routing support.
 
 Then just:
 
@@ -29,8 +31,8 @@ Use the specified scan type. The options are:
 
 | Type       | Description |
 |------------|-------------|
-| `syn`      | A SYN/stealth scan. Most efficient scan type, using only a partial TCP handshake. Requires root privileges.
-| `connect`  | A less detailed scan using full TCP handshakes, though does not require root privileges. 
+| `syn`      | A SYN/stealth scan. Most efficient scan type, using only a partial TCP handshake. Requires root privileges. **Supported on Linux, macOS, and Windows.**
+| `connect`  | A less detailed scan using full TCP handshakes, though does not require root privileges. **Works on all platforms.**
 | `device`   | Attempt to identify device MAC address and manufacturer where possible. Useful for listing devices on a LAN.
 
 The default is a SYN scan.
