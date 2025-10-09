@@ -411,3 +411,11 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 func (s *SynScanner) OutputResult(result Result) {
 	fmt.Println(result.String())
 }
+
+func (s *SynScanner) OutputResultJSON(result Result) {
+	if jsonStr, err := result.ToJSON(); err == nil {
+		fmt.Println(jsonStr)
+	} else {
+		fmt.Printf("Error generating JSON: %v\n", err)
+	}
+}
