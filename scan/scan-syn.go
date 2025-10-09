@@ -42,6 +42,7 @@ type SynScanner struct {
 	jobChan          chan hostJob
 	ti               *TargetIterator
 	serializeOptions gopacket.SerializeOptions
+	outputFormat     string
 }
 
 func NewSynScanner(ti *TargetIterator, timeout time.Duration, paralellism int) *SynScanner {
@@ -409,5 +410,24 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 }
 
 func (s *SynScanner) OutputResult(result Result) {
-	fmt.Println(result.String())
+	switch s.outputFormat {
+	case "json":
+		if jsonData, err := result.ToJSON(); err == nil {
+			fmt.Println(string(jsonData))
+		} else {
+			fmt.Printf("Error marshaling result to JSON: %v\n", err)
+		}
+	case "xml":
+		if xmlData, err := result.ToXML(); err == nil {
+			fmt.Println(string(xmlData))
+		} else {
+			fmt.Printf("Error marshaling result to XML: %v\n", err)
+		}
+	default:
+		fmt.Println(result.String())
+	}
+}
+
+func (s *SynScanner) SetOutputFormat(format string) {
+	s.outputFormat = format
 }

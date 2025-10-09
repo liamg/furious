@@ -11,10 +11,11 @@ import (
 )
 
 type ConnectScanner struct {
-	timeout     time.Duration
-	maxRoutines int
-	jobChan     chan portJob
-	ti          *TargetIterator
+	timeout      time.Duration
+	maxRoutines  int
+	jobChan      chan portJob
+	ti           *TargetIterator
+	outputFormat string
 }
 
 func NewConnectScanner(ti *TargetIterator, timeout time.Duration, paralellism int) *ConnectScanner {
@@ -195,5 +196,24 @@ func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
 }
 
 func (s *ConnectScanner) OutputResult(result Result) {
-	fmt.Println(result.String())
+	switch s.outputFormat {
+	case "json":
+		if jsonData, err := result.ToJSON(); err == nil {
+			fmt.Println(string(jsonData))
+		} else {
+			fmt.Printf("Error marshaling result to JSON: %v\n", err)
+		}
+	case "xml":
+		if xmlData, err := result.ToXML(); err == nil {
+			fmt.Println(string(xmlData))
+		} else {
+			fmt.Printf("Error marshaling result to XML: %v\n", err)
+		}
+	default:
+		fmt.Println(result.String())
+	}
+}
+
+func (s *ConnectScanner) SetOutputFormat(format string) {
+	s.outputFormat = format
 }

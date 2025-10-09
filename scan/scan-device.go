@@ -14,8 +14,9 @@ import (
 )
 
 type DeviceScanner struct {
-	timeout time.Duration
-	ti      *TargetIterator
+	timeout      time.Duration
+	ti           *TargetIterator
+	outputFormat string
 }
 
 func NewDeviceScanner(ti *TargetIterator, timeout time.Duration) *DeviceScanner {
@@ -132,52 +133,70 @@ func (s *DeviceScanner) Scan(ctx context.Context, ports []int) ([]Result, error)
 }
 
 func (s *DeviceScanner) OutputResult(result Result) {
+	switch s.outputFormat {
+	case "json":
+		if jsonData, err := result.ToJSON(); err == nil {
+			fmt.Println(string(jsonData))
+		} else {
+			fmt.Printf("Error marshaling result to JSON: %v\n", err)
+		}
+	case "xml":
+		if xmlData, err := result.ToXML(); err == nil {
+			fmt.Println(string(xmlData))
+		} else {
+			fmt.Printf("Error marshaling result to XML: %v\n", err)
+		}
+	default:
+		fmt.Printf("Scan results for host %s\n", result.Host.String())
 
-	fmt.Printf("Scan results for host %s\n", result.Host.String())
+		status := "DOWN"
 
-	status := "DOWN"
+		if result.IsHostUp() {
+			status = "UP"
+		}
 
-	if result.IsHostUp() {
-		status = "UP"
-	}
-
-	fmt.Printf(
-		"\t%s %s\n",
-		pad("Status:", 24),
-		status,
-	)
-
-	if result.IsHostUp() {
 		fmt.Printf(
 			"\t%s %s\n",
-			pad("Latency:", 24),
-			result.Latency.String(),
+			pad("Status:", 24),
+			status,
 		)
-	}
 
-	if result.MAC != "" {
-		fmt.Printf(
-			"\t%s %s\n",
-			pad("MAC:", 24),
-			result.MAC,
-		)
-	}
+		if result.IsHostUp() {
+			fmt.Printf(
+				"\t%s %s\n",
+				pad("Latency:", 24),
+				result.Latency.String(),
+			)
+		}
 
-	if result.Manufacturer != "" {
-		fmt.Printf(
-			"\t%s %s\n",
-			pad("Manufacturer:", 24),
-			result.Manufacturer,
-		)
-	}
+		if result.MAC != "" {
+			fmt.Printf(
+				"\t%s %s\n",
+				pad("MAC:", 24),
+				result.MAC,
+			)
+		}
 
-	if result.Name != "" {
-		fmt.Printf(
-			"\t%s %s\n",
-			pad("Name:", 24),
-			result.Name,
-		)
-	}
+		if result.Manufacturer != "" {
+			fmt.Printf(
+				"\t%s %s\n",
+				pad("Manufacturer:", 24),
+				result.Manufacturer,
+			)
+		}
 
-	fmt.Println("")
+		if result.Name != "" {
+			fmt.Printf(
+				"\t%s %s\n",
+				pad("Name:", 24),
+				result.Name,
+			)
+		}
+
+		fmt.Println("")
+	}
+}
+
+func (s *DeviceScanner) SetOutputFormat(format string) {
+	s.outputFormat = format
 }
