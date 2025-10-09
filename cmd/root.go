@@ -22,6 +22,7 @@ var portSelection string
 var scanType = "stealth"
 var hideUnavailableHosts bool
 var versionRequested bool
+var jsonOutput bool
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&hideUnavailableHosts, "up-only", "u", hideUnavailableHosts, "Omit output for hosts which are not up")
@@ -31,6 +32,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&timeoutMS, "timeout-ms", "t", timeoutMS, "Scan timeout in MS")
 	rootCmd.PersistentFlags().IntVarP(&parallelism, "workers", "w", parallelism, "Parallel routines to scan on")
 	rootCmd.PersistentFlags().StringVarP(&portSelection, "ports", "p", portSelection, "Port to scan. Comma separated, can sue hyphens e.g. 22,80,443,8080-8090")
+	rootCmd.PersistentFlags().BoolVarP(&jsonOutput, "json", "j", jsonOutput, "Output results in JSON format")
 }
 
 func createScanner(ti *scan.TargetIterator, scanTypeStr string, timeout time.Duration, routines int) (scan.Scanner, error) {
@@ -119,7 +121,11 @@ var rootCmd = &cobra.Command{
 
 			for _, result := range results {
 				if !hideUnavailableHosts || result.IsHostUp() {
-					scanner.OutputResult(result)
+					if jsonOutput {
+						scanner.OutputResultJSON(result)
+					} else {
+						scanner.OutputResult(result)
+					}
 				}
 			}
 

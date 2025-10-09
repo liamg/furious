@@ -7,4 +7,5 @@ type Scanner interface {
 	Start() error
 	Scan(ctx context.Context, ports []int) ([]Result, error)
 	OutputResult(result Result)
+	OutputResultJSON(result Result)
 }

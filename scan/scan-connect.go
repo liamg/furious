@@ -52,6 +52,9 @@ func (s *ConnectScanner) Start() error {
 					case PortFiltered:
 						job.filtered <- job.port
 					}
+				} else {
+					// Even on error, we should report it as filtered to ensure host is marked as up
+					job.filtered <- job.port
 				}
 				close(job.done)
 			}
@@ -188,12 +191,24 @@ func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
 		if strings.Contains(err.Error(), "refused") {
 			return PortClosed, nil
 		}
+		// Check for timeout errors to properly identify filtered ports
+		if strings.Contains(err.Error(), "timeout") || strings.Contains(err.Error(), "i/o timeout") {
+			return PortFiltered, nil
+		}
 		return PortUnknown, err
 	}
 	conn.Close()
-	return PortOpen, err
+	return PortOpen, nil
 }
 
 func (s *ConnectScanner) OutputResult(result Result) {
 	fmt.Println(result.String())
+}
+
+func (s *ConnectScanner) OutputResultJSON(result Result) {
+	if jsonStr, err := result.ToJSON(); err == nil {
+		fmt.Println(jsonStr)
+	} else {
+		fmt.Printf("Error generating JSON: %v\n", err)
+	}
 }
