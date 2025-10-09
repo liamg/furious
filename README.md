@@ -57,6 +57,10 @@ The network timeout to apply to each port being checked. Default is *1000ms*.
 
 The number of worker routines to use to scan ports in parallel. Default is *1000* workers.
 
+### `-r [COUNT]` `--retries [COUNT]`
+
+Number of retries for each port to improve reliability. Default is *1* retry. Increasing this can help detect ports on hosts with rate limiting or packet loss.
+
 ### `-u` `--up-only`
 
 Only show output for hosts that are confirmed as up.
@@ -113,6 +117,30 @@ If you installed using go, your user has the environment variables required to l
 
 ```
 sudo env "PATH=$PATH" furious
+```
+
+## Reliability Improvements
+
+Furious includes several features to improve scan reliability and reduce missed ports:
+
+### SYN Scan Reliability
+- **Unique Source Ports**: Each packet uses a different source port to avoid conflicts
+- **Packet Timing**: Small delays between packets to avoid rate limiting
+- **Retry Mechanism**: Configurable retries for non-responding ports
+- **Response Tracking**: Proper tracking of which ports have responded
+
+### Rate Limiting Mitigation
+- **Adaptive Delays**: Microsecond delays between packets in initial scan
+- **Retry Delays**: Longer delays (1ms) for retry attempts
+- **Source Port Rotation**: Prevents source port conflicts that can cause missed responses
+
+### Usage for Difficult Hosts
+```bash
+# For hosts with aggressive rate limiting or packet loss
+furious -s syn -r 3 -t 5000 difficult-host.com
+
+# Slower but more reliable scanning
+furious -s syn -r 2 -w 100 -t 3000 target-network.com/24
 ```
 
 ## SYN/Connect scans are slower than nmap!
