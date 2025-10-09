@@ -1,7 +1,12 @@
-# Cross-Platform Routing Fix for Issue #13
+# Cross-Platform Routing Fix for Issues #10 & #13
 
 ## Problem
 The furious network scanner was crashing on macOS due to its dependency on the Linux-only `github.com/google/gopacket/routing` library. This library only works on Linux systems and causes runtime panics on macOS.
+
+**Issue #10:** Local scanning on Mac throws panic with "router only implemented in linux"
+**Issue #13:** macOS compatibility issue due to Linux-only networking library dependency
+
+Both issues stem from the same root cause - the gopacket routing library's Linux-only implementation.
 
 ## Solution
 Implemented a cross-platform routing abstraction that:
