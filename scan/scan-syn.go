@@ -12,7 +12,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"github.com/google/gopacket/routing"
+	""
 	"github.com/mostlygeek/arp"
 	"github.com/phayes/freeport"
 	"github.com/sirupsen/logrus"
@@ -239,14 +239,13 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 	default:
 	}
 
-	router, err := routing.New()
+	routeInfo, err := GetRoute(job.ip)
 	if err != nil {
 		return result, err
 	}
-	networkInterface, gateway, srcIP, err := router.Route(job.ip)
-	if err != nil {
-		return result, err
-	}
+	networkInterface := routeInfo.Interface
+	gateway := routeInfo.Gateway
+	srcIP := routeInfo.SrcIP
 
 	handle, err := pcap.OpenLive(networkInterface.Name, 65535, true, pcap.BlockForever)
 	if err != nil {
