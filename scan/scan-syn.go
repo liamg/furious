@@ -12,7 +12,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"github.com/google/gopacket/routing"
 	"github.com/mostlygeek/arp"
 	"github.com/phayes/freeport"
 	"github.com/sirupsen/logrus"
@@ -239,7 +238,7 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 	default:
 	}
 
-	router, err := routing.New()
+	router, err := NewRouter()
 	if err != nil {
 		return result, err
 	}
