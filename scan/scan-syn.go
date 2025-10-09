@@ -254,12 +254,16 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 	}
 	defer handle.Close()
 
-	openChan := make(chan int)
-	closedChan := make(chan int)
-	filteredChan := make(chan int)
+	openChan := make(chan int, len(job.ports))
+	closedChan := make(chan int, len(job.ports))
+	filteredChan := make(chan int, len(job.ports))
 	doneChan := make(chan struct{})
 
 	startTime := time.Now()
+
+	// Track which ports have responded
+	respondedPorts := make(map[int]bool)
+	var respondedMutex sync.Mutex
 
 	go func() {
 		for {
@@ -272,32 +276,59 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 				if result.Latency < 0 {
 					result.Latency = time.Since(startTime)
 				}
+				respondedMutex.Lock()
+				respondedPorts[open] = true
+				respondedMutex.Unlock()
+				
+				// Check for duplicates
+				duplicate := false
 				for _, existing := range result.Open {
 					if existing == open {
-						continue
+						duplicate = true
+						break
 					}
 				}
-				result.Open = append(result.Open, open)
+				if !duplicate {
+					result.Open = append(result.Open, open)
+				}
 			case closed := <-closedChan:
 				if result.Latency < 0 {
 					result.Latency = time.Since(startTime)
 				}
+				respondedMutex.Lock()
+				respondedPorts[closed] = true
+				respondedMutex.Unlock()
+				
+				// Check for duplicates
+				duplicate := false
 				for _, existing := range result.Closed {
 					if existing == closed {
-						continue
+						duplicate = true
+						break
 					}
 				}
-				result.Closed = append(result.Closed, closed)
+				if !duplicate {
+					result.Closed = append(result.Closed, closed)
+				}
 			case filtered := <-filteredChan:
 				if result.Latency < 0 {
 					result.Latency = time.Since(startTime)
 				}
+				respondedMutex.Lock()
+				respondedPorts[filtered] = true
+				respondedMutex.Unlock()
+				
+				// Check for duplicates
+				duplicate := false
 				for _, existing := range result.Filtered {
 					if existing == filtered {
-						continue
+						duplicate = true
+						break
 					}
 				}
-				result.Filtered = append(result.Filtered, filtered)
+				if !duplicate {
+					result.Filtered = append(result.Filtered, filtered)
+				}
 			}
 		}
 	}()
@@ -401,6 +432,16 @@ func (s *SynScanner) scanHost(job hostJob) (Result, error) {
 	defer timer.Stop()
 
 	<-listenChan
+
+	// After timeout, mark non-responding ports as filtered
+	respondedMutex.Lock()
+	for _, port := range job.ports {
+		if !respondedPorts[port] {
+			// Port didn't respond - it's filtered
+			filteredChan <- port
+		}
+	}
+	respondedMutex.Unlock()
 
 	close(openChan)
 	<-doneChan
