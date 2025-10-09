@@ -15,6 +15,7 @@ type ConnectScanner struct {
 	maxRoutines int
 	jobChan     chan portJob
 	ti          *TargetIterator
+	jsonOutput  bool
 }
 
 func NewConnectScanner(ti *TargetIterator, timeout time.Duration, paralellism int) *ConnectScanner {
@@ -195,5 +196,17 @@ func (s *ConnectScanner) scanPort(target net.IP, port int) (PortState, error) {
 }
 
 func (s *ConnectScanner) OutputResult(result Result) {
-	fmt.Println(result.String())
+	if s.jsonOutput {
+		if jsonData, err := result.ToJSON(); err == nil {
+			fmt.Println(string(jsonData))
+		} else {
+			fmt.Printf("Error marshaling result to JSON: %v\n", err)
+		}
+	} else {
+		fmt.Println(result.String())
+	}
+}
+
+func (s *ConnectScanner) SetJSONOutput(enabled bool) {
+	s.jsonOutput = enabled
 }

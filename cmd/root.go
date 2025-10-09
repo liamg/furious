@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -22,6 +23,7 @@ var portSelection string
 var scanType = "stealth"
 var hideUnavailableHosts bool
 var versionRequested bool
+var jsonOutput bool
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&hideUnavailableHosts, "up-only", "u", hideUnavailableHosts, "Omit output for hosts which are not up")
@@ -31,22 +33,29 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&timeoutMS, "timeout-ms", "t", timeoutMS, "Scan timeout in MS")
 	rootCmd.PersistentFlags().IntVarP(&parallelism, "workers", "w", parallelism, "Parallel routines to scan on")
 	rootCmd.PersistentFlags().StringVarP(&portSelection, "ports", "p", portSelection, "Port to scan. Comma separated, can sue hyphens e.g. 22,80,443,8080-8090")
+	rootCmd.PersistentFlags().BoolVarP(&jsonOutput, "json", "j", jsonOutput, "Output results in JSON format")
 }
 
-func createScanner(ti *scan.TargetIterator, scanTypeStr string, timeout time.Duration, routines int) (scan.Scanner, error) {
+func createScanner(ti *scan.TargetIterator, scanTypeStr string, timeout time.Duration, routines int, jsonOutput bool) (scan.Scanner, error) {
+	var scanner scan.Scanner
+	var err error
+
 	switch strings.ToLower(scanTypeStr) {
 	case "stealth", "syn", "fast":
 		if os.Geteuid() > 0 {
 			return nil, fmt.Errorf("Access Denied: You must be a priviliged user to run this type of scan.")
 		}
-		return scan.NewSynScanner(ti, timeout, routines), nil
+		scanner = scan.NewSynScanner(ti, timeout, routines)
 	case "connect":
-		return scan.NewConnectScanner(ti, timeout, routines), nil
+		scanner = scan.NewConnectScanner(ti, timeout, routines)
 	case "device":
-		return scan.NewDeviceScanner(ti, timeout), nil
+		scanner = scan.NewDeviceScanner(ti, timeout)
+	default:
+		return nil, fmt.Errorf("Unknown scan type '%s'", scanTypeStr)
 	}
 
-	return nil, fmt.Errorf("Unknown scan type '%s'", scanTypeStr)
+	scanner.SetJSONOutput(jsonOutput)
+	return scanner, err
 }
 
 var rootCmd = &cobra.Command{
@@ -90,14 +99,19 @@ var rootCmd = &cobra.Command{
 		}()
 
 		startTime := time.Now()
-		fmt.Printf("\nStarting scan at %s\n\n", startTime.String())
+		
+		if !jsonOutput {
+			fmt.Printf("\nStarting scan at %s\n\n", startTime.String())
+		}
+
+		allResults := []scan.Result{}
 
 		for _, target := range args {
 
 			targetIterator := scan.NewTargetIterator(target)
 
 			// creating scanner
-			scanner, err := createScanner(targetIterator, scanType, time.Millisecond*time.Duration(timeoutMS), parallelism)
+			scanner, err := createScanner(targetIterator, scanType, time.Millisecond*time.Duration(timeoutMS), parallelism, jsonOutput)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -119,13 +133,21 @@ var rootCmd = &cobra.Command{
 
 			for _, result := range results {
 				if !hideUnavailableHosts || result.IsHostUp() {
-					scanner.OutputResult(result)
+					if jsonOutput {
+						allResults = append(allResults, result)
+					} else {
+						scanner.OutputResult(result)
+					}
 				}
 			}
 
 		}
 
-		fmt.Printf("Scan complete in %s.\n", time.Since(startTime).String())
+		if jsonOutput {
+			outputJSONResults(allResults)
+		} else {
+			fmt.Printf("Scan complete in %s.\n", time.Since(startTime).String())
+		}
 
 	},
 }
@@ -178,4 +200,23 @@ func getPorts(selection string) ([]int, error) {
 		}
 	}
 	return ports, nil
+}
+
+func outputJSONResults(results []scan.Result) {
+	jsonResults := make([]interface{}, 0, len(results))
+	
+	for _, result := range results {
+		if jsonData, err := result.ToJSON(); err == nil {
+			var jsonObj interface{}
+			if err := json.Unmarshal(jsonData, &jsonObj); err == nil {
+				jsonResults = append(jsonResults, jsonObj)
+			}
+		}
+	}
+	
+	if output, err := json.MarshalIndent(jsonResults, "", "  "); err == nil {
+		fmt.Println(string(output))
+	} else {
+		fmt.Printf("Error marshaling results to JSON: %v\n", err)
+	}
 }
