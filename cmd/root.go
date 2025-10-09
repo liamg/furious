@@ -22,6 +22,7 @@ var portSelection string
 var scanType = "stealth"
 var hideUnavailableHosts bool
 var versionRequested bool
+var retries int = 1
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&hideUnavailableHosts, "up-only", "u", hideUnavailableHosts, "Omit output for hosts which are not up")
@@ -31,15 +32,18 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&timeoutMS, "timeout-ms", "t", timeoutMS, "Scan timeout in MS")
 	rootCmd.PersistentFlags().IntVarP(&parallelism, "workers", "w", parallelism, "Parallel routines to scan on")
 	rootCmd.PersistentFlags().StringVarP(&portSelection, "ports", "p", portSelection, "Port to scan. Comma separated, can sue hyphens e.g. 22,80,443,8080-8090")
+	rootCmd.PersistentFlags().IntVarP(&retries, "retries", "r", retries, "Number of retries for each port (default 1)")
 }
 
-func createScanner(ti *scan.TargetIterator, scanTypeStr string, timeout time.Duration, routines int) (scan.Scanner, error) {
+func createScanner(ti *scan.TargetIterator, scanTypeStr string, timeout time.Duration, routines int, retries int) (scan.Scanner, error) {
 	switch strings.ToLower(scanTypeStr) {
 	case "stealth", "syn", "fast":
 		if os.Geteuid() > 0 {
 			return nil, fmt.Errorf("Access Denied: You must be a priviliged user to run this type of scan.")
 		}
-		return scan.NewSynScanner(ti, timeout, routines), nil
+		scanner := scan.NewSynScanner(ti, timeout, routines)
+		scanner.SetRetries(retries)
+		return scanner, nil
 	case "connect":
 		return scan.NewConnectScanner(ti, timeout, routines), nil
 	case "device":
@@ -97,7 +101,7 @@ var rootCmd = &cobra.Command{
 			targetIterator := scan.NewTargetIterator(target)
 
 			// creating scanner
-			scanner, err := createScanner(targetIterator, scanType, time.Millisecond*time.Duration(timeoutMS), parallelism)
+			scanner, err := createScanner(targetIterator, scanType, time.Millisecond*time.Duration(timeoutMS), parallelism, retries)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
