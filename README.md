@@ -61,6 +61,10 @@ The number of worker routines to use to scan ports in parallel. Default is *1000
 
 Only show output for hosts that are confirmed as up.
 
+### `-j` `--json`
+
+Output results in JSON format instead of the default human-readable format. This is useful for programmatic processing of scan results.
+
 ### `--version`
 
 Output version information and exit.
@@ -103,6 +107,33 @@ furious -s connect 192.168.1.1
 
 ```
 furious -s device 192.168.1.1/24 -u
+```
+
+### Output results in JSON format
+
+```
+furious -s connect -j 192.168.1.1
+```
+
+Example JSON output:
+```json
+[
+  {
+    "host": "192.168.1.1",
+    "status": "up",
+    "latency_ms": 2.5,
+    "open_ports": [
+      {
+        "port": 22,
+        "service": "ssh"
+      },
+      {
+        "port": 80,
+        "service": "http"
+      }
+    ]
+  }
+]
 ```
 
 ## Troubleshooting
